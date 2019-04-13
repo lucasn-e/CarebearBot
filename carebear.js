@@ -7,72 +7,92 @@ logger.add(new logger.transports.Console, {
     colorize: true
 });
 logger.level = 'debug';
-// Initialize Discord client
-const client = new Discord.Client({
+// Initialize Discord bot
+const bot = new Discord.Client({
    token: auth.token,
    autorun: true
 });
 let sourceChannel;
 let targetChannel;
 let currentMessage;
+let adminRole;
 
-client.on('ready', function (event) {
+bot.on('ready', function (event) {
     logger.info('Connected');
     logger.info('Logged in as: ');
-    logger.info(client.username + ' - (' + client.id + ')');
+    logger.info(bot.username + ' - (' + bot.id + ')');
 });
 
-client.on('messageCreate', function (user, userID, channelID, message, event) {
+bot.on('messageCreate', function (user, userID, channelID, message, event) {
     // if message was sent in the source channel, save and delete it
     // and post it to the target channel
     // unless it was sent by our carebear. just delete if that's the care
     if (channelID == sourceChannel && user != 'Carebear'){
         currentMessage = message;
-        client.deleteMessage({channelID: channelID, messageID: event.d.id});
+        bot.deleteMessage({channelID: channelID, messageID: event.d.id});
         if (!targetChannel){
-            client.sendMessage({
+            bot.sendMessage({
                 to: channelID,
                 message: 'Please set target channel first.'
             });
         }
-        client.sendMessage({
+        bot.sendMessage({
             to: targetChannel,
             message: currentMessage
         });
     } else if (channelID == sourceChannel && user == 'Carebear'){
-        client.deleteMessage({channelID: channelID, messageID: event.d.id});
+        bot.deleteMessage({channelID: channelID, messageID: event.d.id});
     }
 
     // check if author of the message is admin
     let isAdmin = event.d.member.roles.some( (elem) => {
-        return elem == '566371725126664204';
+        return elem == adminRole;
     });
 
     // only accept commands from admins
     if (message.substring(0, 1) == '!' && isAdmin) {
         if (message == '!care help'){
-            client.sendMessage({
+            bot.sendMessage({
                 to: channelID,
                 message: 'Heya, I can\'t do much but here are my commands:\nUse `!care source` in the channel you wish the bot to listen in.\nUse `!care target` in your target channel, to tell the bot where to send the anonymous messages.'
             });
         } else if (message.includes('!care target')) {
             targetChannel = channelID;
-                client.sendMessage({
-                    to: channelID,
-                    message: 'current channel set as target'
-                });
+            bot.sendMessage({
+                to: channelID,
+                message: 'current channel set as target'
+            });
         } else if (message.includes('!care source')) {
             sourceChannel = channelID;
-                client.sendMessage({
-                    to: channelID,
-                    message: 'current channel set as source'
-                });
+            bot.sendMessage({
+                to: channelID,
+                message: 'current channel set as source'
+            });
+        } else if (message.includes('!care setrole')) {
+            adminRole = event.d.member.roles[0];
+            bot.sendMessage({
+                to: channelID,
+                message: 'admin role set'
+            });
         } else {
-            client.sendMessage({
+            bot.sendMessage({
                 to: channelID,
                 message: 'Invalid command, sorry.'
             });
         }
-        client.deleteMessage({channelID: channelID, messageID: event.d.id});
+        bot.deleteMessage({channelID: channelID, messageID: event.d.id});
+     } else if (!adminRole) {
+         if (message.includes('!care setrole')){
+            adminRole = event.d.member.roles[0];
+            bot.sendMessage({
+                to: channelID,
+                message: 'admin role set'
+            });
+         } else {
+            bot.sendMessage({
+                to: channelID,
+                message: 'no admin role set - please use !care setrole to set the bot admin role'
+            });
+         }
      }
 });
